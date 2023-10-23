@@ -51,6 +51,9 @@ class Server(ServerInterface):
 
         return True
 
+    def get_banner(self) -> tuple[str, str]:
+        return ("You are now using Team Cryptos very dodgy SSH server.", "en-US")
+
 
 class Shell(threading.Thread):
     """This is a thread that runs a shell for a connected client.
@@ -73,7 +76,7 @@ class Shell(threading.Thread):
         Upon reading EOF from channel, we kill process and close channel."""
         global pubkey
         self.chan.send(
-            b"By the way... got ur pubkey! >:)\r\nFingerprint: " + pubkey + b"\r\n"
+            b"\r\nBy the way... got ur pubkey! >:)\r\nFingerprint: " + pubkey + b"\r\n"
         )
 
         while not self.chan.closed:
