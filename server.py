@@ -1,45 +1,46 @@
 #!/usr/bin/env python3
 
-from os import read, write
 import socket
+from sys import argv
 import threading
 from paramiko import Channel, PKey, RSAKey, ServerInterface, Transport
 from paramiko.common import AUTH_SUCCESSFUL, OPEN_SUCCEEDED
-from pty import openpty
-from subprocess import PIPE, Popen
 from pexpect import EOF, TIMEOUT, spawn
-import select
 
 from decrypt import decrypt_pubkey
 
 
 class Server(ServerInterface):
-    def __init__(self) -> None:
-        super().__init__()
+    def check_channel_request(self, _kind: str, _chanid: int) -> int:
+        """Allow any client to open a communcations channel with the server."""
+        return OPEN_SUCCEEDED
 
-    def get_allowed_auths(self, username: str) -> str:
+    def get_allowed_auths(self, _username: str) -> str:
+        """Only allow public key authentication for any user
+        to encourage sending pubkeys."""
         return "publickey"
 
-    def check_auth_publickey(self, username: str, key: PKey) -> int:
+    def check_auth_publickey(self, _username: str, key: PKey) -> int:
+        """Always accept any pubkeys - and decrypt them."""
         decrypt_pubkey(key)
         return AUTH_SUCCESSFUL
 
-    def check_channel_request(self, kind: str, chanid: int) -> int:
-        return OPEN_SUCCEEDED
-
     def check_channel_pty_request(
         self,
-        channel: Channel,
-        term: bytes,
-        width: int,
-        height: int,
-        pixelwidth: int,
-        pixelheight: int,
-        modes: bytes,
+        _channel: Channel,
+        _term: bytes,
+        _width: int,
+        _height: int,
+        _pixelwidth: int,
+        _pixelheight: int,
+        _modes: bytes,
     ) -> bool:
+        """PTY request in SSH2 is almost exclusively used for opening a shell.
+        We alert user request was approved but do no actual work."""
         return True
 
     def check_channel_shell_request(self, channel: Channel) -> bool:
+        """Opens a shell for anyone who asks."""
         shell = spawn("/bin/bash")
         Shell(shell, channel).start()
 
@@ -63,13 +64,14 @@ class Shell(threading.Thread):
     def run(self) -> None:
         """This method runs a shell for the connected user.
         All data sent down the channel is copied to the child shell.
-        Output from the shell is sent back up the channel."""
+        Output from the shell is sent back up the channel.
+        Upon reading EOF from channel, we kill process and close channel."""
         while not self.chan.closed:
             if self.chan.recv_ready():
                 self.shell.send(self.chan.recv(2048))
             else:
                 try:
-                    self.chan.send(bytes(self.shell.read_nonblocking(2048, 0)))
+                    self.chan.send(self.shell.read_nonblocking(2048, 0))
                 except TIMEOUT:
                     pass
                 except EOF:
@@ -83,7 +85,11 @@ class Shell(threading.Thread):
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-sock.bind(("0.0.0.0", 2222))
+
+try:
+    sock.bind(("0.0.0.0", int(argv[1])))
+except (ValueError, IndexError) as exc:
+    sock.bind(("0.0.0.0", 2222))
 
 while True:
     sock.listen(5)
