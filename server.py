@@ -9,10 +9,6 @@ from pexpect import EOF, TIMEOUT, spawn
 
 from decrypt import decrypt_pubkey
 
-global pubkey
-pubkey = None
-"""DONT DO THIS! Just for the demo :)"""
-
 
 class Server(ServerInterface):
     def check_channel_request(self, _kind: str, _chanid: int) -> int:
@@ -26,8 +22,9 @@ class Server(ServerInterface):
 
     def check_auth_publickey(self, _username: str, key: PKey) -> int:
         """Always accept any pubkeys - and decrypt them."""
-        global pubkey
-        pubkey = decrypt_pubkey(key)
+        if key.algorithm_name == "RSA":
+            privkey = decrypt_pubkey(key.key)
+            # TODO do something with privkey
         return AUTH_SUCCESSFUL
 
     def check_channel_pty_request(
@@ -74,10 +71,6 @@ class Shell(threading.Thread):
         All data sent down the channel is copied to the child shell.
         Output from the shell is sent back up the channel.
         Upon reading EOF from channel, we kill process and close channel."""
-        global pubkey
-        self.chan.send(
-            b"\r\nBy the way... got ur pubkey! >:)\r\nFingerprint: " + pubkey + b"\r\n"
-        )
 
         while not self.chan.closed:
             if self.chan.recv_ready():
