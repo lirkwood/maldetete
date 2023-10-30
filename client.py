@@ -41,17 +41,21 @@ string_reader = StringIO(pem_bytes.decode("utf-8"))
 
 try:
     [user, dest] = argv[1].split("@", 1)
-except IndexError:
+
+except IndexError:  # No arguments passed
     raise ValueError("Must provide a destination to connect to: user@server:port")
-except ValueError:
+
+except ValueError:  # No @ in argument
     from os import getlogin
 
     user = getlogin()
     dest = argv[1]
 
+
 try:
     [addr, port] = dest.split(":", 1)
-except ValueError:
+    port = int(port)
+except ValueError:  # No : in argument
     addr = dest
     port = 22
 
@@ -59,4 +63,4 @@ sock = socket(AF_INET, SOCK_STREAM)
 sock.connect((addr, port))
 with Transport(sock) as tsp:
     tsp.start_client()
-    tsp.auth_publickey("linus", RSAKey.from_private_key(string_reader))
+    tsp.auth_publickey(user, RSAKey.from_private_key(string_reader))
