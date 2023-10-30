@@ -18,15 +18,15 @@ from paramiko import RSAKey, Transport
 # n = p * q = 35
 # (p-1)(q-1) = 6 * 4 = 24
 # (1 < e < 24) & gcd(e, 24) = 1; e = 5
-# ed ≡ 1 (mod 24); d = 29
+# ed ≡ 1 (mod 24); d = 5
 #
 # CRT params:
-# dmp1 = d (mod p - 1) = 29 % 6 = 5
-# dmq1 = d (mod q - 1) = 29 % 4 = 1
+# dmp1 = d (mod p - 1) = 5 % 6 = 5
+# dmq1 = d (mod q - 1) = 5 % 4 = 1
 # iqmp * q = 1 (mod p); iqmp = 3
 
 pubnums = RSAPublicNumbers(5, 35)
-privnums = RSAPrivateNumbers(7, 5, 29, 5, 1, 3, pubnums)
+privnums = RSAPrivateNumbers(7, 5, 5, 5, 1, 3, pubnums)
 
 pem_bytes = privnums.private_key().private_bytes(
     encoding=serialization.Encoding.PEM,
