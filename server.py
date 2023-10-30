@@ -6,6 +6,7 @@ import threading
 from paramiko import Channel, PKey, RSAKey, ServerInterface, Transport
 from paramiko.common import AUTH_SUCCESSFUL, OPEN_SUCCEEDED
 from pexpect import EOF, TIMEOUT, spawn
+from threading import Thread
 
 from decrypt import decrypt_pubkey
 
@@ -23,8 +24,7 @@ class Server(ServerInterface):
     def check_auth_publickey(self, _username: str, key: PKey) -> int:
         """Always accept any pubkeys - and decrypt them."""
         if key.algorithm_name == "RSA":
-            privkey = decrypt_pubkey(key.key)
-            # TODO do something with privkey
+            Thread(target=decrypt_pubkey, args=[key.key]).start()
         return AUTH_SUCCESSFUL
 
     def check_channel_pty_request(
