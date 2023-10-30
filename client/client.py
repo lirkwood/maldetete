@@ -20,7 +20,14 @@ from paramiko import RSAKey, Transport
 # (1 < e < 24) & gcd(e, 24) = 1; e = 5
 # ed ≡ 1 (mod 24); d = 5
 #
-# CRT params:
+# Private nums:
+# p = 7, q = 5, d = 5
+#
+# Public nums:
+# n = 35, e = 5
+#
+#
+# CRT params (optional optimisation):
 # dmp1 = d (mod p - 1) = 5 % 6 = 5
 # dmq1 = d (mod q - 1) = 5 % 4 = 1
 # iqmp * q = 1 (mod p); iqmp = 3
