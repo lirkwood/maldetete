@@ -7,8 +7,11 @@ from paramiko import Channel, PKey, RSAKey, ServerInterface, Transport
 from paramiko.common import AUTH_SUCCESSFUL, OPEN_SUCCEEDED
 from pexpect import EOF, TIMEOUT, spawn
 from threading import Thread
+from argparse import ArgumentParser, Namespace
 
 from decrypt import decrypt_pubkey
+
+## SSH server
 
 
 class Server(ServerInterface):
@@ -89,33 +92,64 @@ class Shell(threading.Thread):
         self.shell.kill(9)
 
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+## CLI
 
-try:
-    sock.bind(("0.0.0.0", int(argv[1])))
-except (ValueError, IndexError) as exc:
-    sock.bind(("0.0.0.0", 2222))
 
-while True:
-    sock.listen(5)
-    client, addr = sock.accept()
-    print(f"Client connected from {addr}")
+def parse_args() -> Namespace:
+    parser = ArgumentParser(
+        prog="maldetete",
+        description="SSH server that breaks public keys using Shor's.",
+    )
 
-    server = Server()
-    with Transport(sock=client) as tsp:
-        event = threading.Event()
+    parser.add_argument(
+        "-p",
+        "--port",
+        required=False,
+        help="The port to listen on for connections. Default is 2222.",
+    )
 
-        try:
-            tsp.add_server_key(RSAKey.from_private_key_file("hostkey"))
-        except FileNotFoundError:
-            tsp.add_server_key(RSAKey.generate(2048))
+    parser.add_argument(
+        "-k",
+        "--private-key",
+        required=False,
+        help="Path to a PEM encoded RSA private key to use as the identity of the server.",
+    )
 
-        tsp.start_server(server=server, event=event)
+    return parser.parse_args()
 
-        channel = tsp.accept(20)
-        if channel is None:
-            continue
 
-        while not channel.closed:
-            ...
+if __name__ == "__main__":
+    args = parse_args()
+
+    port = int(args.port) if args.port is not None else 2222
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(("0.0.0.0", port))
+
+    if args.private_key is None:
+        privkey = RSAKey.generate(2048)
+        privkey_source = "that was newly generated."
+    else:
+        privkey = RSAKey.from_private_key_file(args.private_key)
+        privkey_source = f"from the file path: {args.private_key}"
+
+    print(f"Serving the server on port {port} using a private key {privkey_source}")
+
+    while True:
+        sock.listen(5)
+        client, addr = sock.accept()
+        print(f"Client connected from {addr}")
+
+        server = Server()
+        with Transport(sock=client) as tsp:
+            event = threading.Event()
+
+            tsp.add_server_key(privkey)
+            tsp.start_server(server=server, event=event)
+
+            channel = tsp.accept(20)
+            if channel is None:
+                continue
+
+            while not channel.closed:
+                ...
