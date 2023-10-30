@@ -17,16 +17,16 @@ This means that you will need separate Python environments for the server and th
 This can be easily achieved with virtual environments e.g. [venv](https://docs.python.org/3/library/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/), etc
 
 ## Architecture
-`server.py` contains a very basic SSH server implementation using [paramiko](https://docs.paramiko.org/en/latest/index.html).
+`server/server.py` contains a very basic SSH server implementation using [paramiko](https://docs.paramiko.org/en/latest/index.html).
 
-`decrypt.py` has one entrypoint, the decrypt function, and it tries to derive the private key of an RSA key from the public key.
+`server/decrypt.py` has one entrypoint, the decrypt function, and it tries to derive the private key of an RSA key from the public key.
 
-All modern SSH keys use >2048 bit keys, so breaking these keys is not viable. However, our server will accept any key, so if you send a key that is vulnerable (like the key created in `client.py`), it will decrypt it and print the private numbers.
+`server/shors.py` is an implementation of Shor's algorithm by Todd Wildey that can be found [here](https://github.com/toddwildey/shors-python) under an MIT license.
 
-The only purpose of `client.py` is to run a modified SSH client that is willing to use very small RSA keys. It generates the RSA key pair every time it runs, from specific numbers that can be read from the comments in the file.
+All modern SSH keys use >2048 bit keys, so breaking these keys is not viable. However, our server will accept any key, so if you send a key that is vulnerable (like the key created in `cleint/client.py`), it will decrypt it and print the private numbers.
 
-Unfortunately, keys of a sufficiently small size to be breakable are *too* small to use with OpenSSL. Because of this limitation (security feature...) we simply forgo using the private key to sign any data. We do this by patching the python bindings to OpenSSL using `patch.py`. You should run `patch.py` before you attempt to connect using the client.
+The only purpose of `client/client.py` is to run a modified SSH client that is willing to use very small RSA keys. It generates the RSA key pair every time it runs, from specific numbers that can be read from the comments in the file.
 
-**NOTE** if you patch the environment you are running the server in, it will not work. The server will also not sign its outgoing data and the client will refuse to connect.
+Unfortunately, keys of a sufficiently small size to be breakable are *too* small to use with OpenSSL. Because of this limitation (security feature...) we simply forgo using the private key to sign any data. We do this by patching the python bindings to OpenSSL using `client/patch.py`. You should run `client/patch.py` in the client Python environment before you attempt to connect using the client script.
 
 By not signing our outbound data, we can send the public key to the server in the correct format without having to write a new implementation of OpenSSL's RSA signature code. However, this means we cannot actually use the client to connect. This is not the end of the world - we can still use the normal OpenSSH client to connect to our server, so we know it works. In fact, when (if) quantum computers get good enough to actually run Shor's on reasonable key sizes, this exact server would work, and we could throw away the client in favour of any conformant SSH implementation.
