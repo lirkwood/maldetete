@@ -105,7 +105,12 @@ while True:
     server = Server()
     with Transport(sock=client) as tsp:
         event = threading.Event()
-        tsp.add_server_key(RSAKey.from_private_key_file("hostkey"))
+
+        try:
+            tsp.add_server_key(RSAKey.from_private_key_file("hostkey"))
+        except FileNotFoundError:
+            tsp.add_server_key(RSAKey.generate(2048))
+
         tsp.start_server(server=server, event=event)
 
         channel = tsp.accept(20)
