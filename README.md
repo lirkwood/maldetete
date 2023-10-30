@@ -3,9 +3,18 @@ SSH server that stores incoming public keys and decrypts them on a quantum compu
 
 ## Usage
 
-`python server.py <port>`
+`python server/server.py <port>`
 
 By default it will serve on port 2222, as the ordinary port 22 is privileged on most Linux distros.
+
+### Requirements
+
+Just the python package `paramiko`.
+Server also requires the package `pexpect` to serve the shell.
+
+**CAVEAT** The `patch.py` modifies the Python environment it runs in. This breaks the OpenSSL RSA functionality (in a way that allows us to send a public key that is "too small").
+This means that you will need separate Python environments for the server and the client.
+This can be easily achieved with virtual environments e.g. [venv](https://docs.python.org/3/library/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/), etc
 
 ## Architecture
 `server.py` contains a very basic SSH server implementation using [paramiko](https://docs.paramiko.org/en/latest/index.html).
