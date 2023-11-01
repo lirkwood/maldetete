@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import socket
-from sys import argv
 import threading
 from paramiko import Channel, PKey, RSAKey, ServerInterface, Transport
 from paramiko.common import AUTH_SUCCESSFUL, OPEN_SUCCEEDED
