@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 
 from io import StringIO
-from sys import argv
+from sys import stdin, stdout
 from socket import AF_INET, SOCK_STREAM, socket
+from threading import Thread
 from cryptography.hazmat.primitives.asymmetric.rsa import (
     RSAPrivateNumbers,
     RSAPublicNumbers,
 )
 from cryptography.hazmat.primitives import serialization
 from argparse import ArgumentParser, Namespace
+import select
 
-from paramiko import RSAKey, Transport
+from paramiko import Channel, RSAKey, Transport
 
 
 ## Key generation
@@ -50,10 +52,39 @@ def gen_rsa() -> bytes:
     )
 
 
+class InputListener(Thread):
+    """This is a thread that listens for console input,
+    and sends it down a channel when it receives some.
+    All logic is in the run method."""
+
+    chan: Channel
+    """Channel this shell is attached to."""
+
+    def __init__(self, chan: Channel) -> None:
+        self.chan = chan
+        super().__init__()
+
+    def run(self) -> None:
+        poll = select.poll()
+        poll.register(stdin.fileno())
+        outbytes = bytearray()
+        while not self.chan.closed:
+            if len(outbytes) > 0:
+                self.chan.send(outbytes)
+                outbytes = bytearray()
+
+            for _, event in poll.poll():
+                if event == select.POLLOUT:
+                    outbytes.extend(bytearray(stdin.readline(), "utf-8"))
+
+        self.chan.shutdown(2)
+
+
 ## Connecting
 
 
 def parse_args() -> Namespace:
+    """Parses CLI arguments."""
     parser = ArgumentParser(
         prog="maldetete-client",
         description="SSH client that can use very small RSA keys (almost).",
@@ -80,10 +111,6 @@ if __name__ == "__main__":
 
     try:
         [user, dest] = args.server.split("@", 1)
-
-    except IndexError:  # No arguments passed
-        raise ValueError("Must provide a destination to connect to: user@server:port")
-
     except ValueError:  # No @ in argument
         from os import getlogin
 
@@ -97,13 +124,23 @@ if __name__ == "__main__":
         addr = dest
         port = 22
 
-    if args.private_key is not None:
-        privkey = RSAKey.from_private_key_file(args.private_key)
-    else:
+    if args.private_key is None:
         privkey = RSAKey.from_private_key(StringIO(gen_rsa().decode("utf-8")))
+    else:
+        privkey = RSAKey.from_private_key_file(args.private_key)
 
     sock = socket(AF_INET, SOCK_STREAM)
     sock.connect((addr, port))
+
     with Transport(sock) as tsp:
         tsp.start_client()
         tsp.auth_publickey(user, privkey)
+
+        chan = tsp.open_channel("session")
+        chan.get_pty()
+        chan.invoke_shell()
+        listener = InputListener(chan)
+        listener.start()
+        while not chan.closed:
+            stdout.write(chan.recv(2048).decode("utf-8"))
+        listener.join()
