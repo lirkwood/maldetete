@@ -594,5 +594,11 @@ if __name__ == "__main__":
     # We replace the file with the modified version above.
     # This avoids openssl throwing an error when we try to sign data that is
     # larger in size than our key.
-    with open(rsa.__file__, "w") as stream:
-        stream.write(patched_file)
+    with open(rsa.__file__, "r") as mod:
+        with open(rsa.__file__ + ".bkp", "w") as bkp:
+            bkp.write(mod.read())
+
+    with open(rsa.__file__, "w") as mod:
+        mod.write(patched_file)
+
+    print("Successfully patched.")
