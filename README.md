@@ -3,16 +3,30 @@ SSH server that stores incoming public keys and decrypts them on a simulated qua
 
 ## Requirements
 
-Just the python package `paramiko`.
-Server also requires the package `pexpect` to serve the shell.
+### Both
++ `paramiko`
 
-**NOTE** `client/patch.py` modifies the Python environment it runs in. This breaks the OpenSSL RSA functionality (in a way that allows us to send a public key that is "too small"), and therefore the server.
-This means that you will need separate Python environments for the server and the client.
-This can be easily achieved with virtual environments e.g. [venv](https://docs.python.org/3/library/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/), etc
+### Just Server
++ `pexpect`
 
 ## Usage
 
+### Environment
+
+The client cannot send RSA keys smaller than 1024 bits with running `client/patch.py` first. The script modifies the Python environment it runs in, replacing the binding to an OpenSSL function with a no-op. This lets us send public keys that are smaller than normal.
+
+`client/unpatch.py` undoes the patch and restores the original contents of the file.
+
+This means that you will need separate Python environments for the server and the client.
+This can be easily achieved with virtual environments e.g. [venv](https://docs.python.org/3/library/venv.html), [virtualenv](https://virtualenv.pypa.io/en/latest/), etc
+
+If you don't want to bother, you can simply start the server before patching.
+
+### CLI
+
 When in doubt, try `python <server.py or client.py> -h` for a brief help message.
+
+**NOTE** When using the provided client in the patched environment (more about this below), it will fail with a message "Authentication Failed". This is because it is unable to sign outgoing packets with OpenSSL due to the small key size - the patch simply avoids this step long enough to send the public key in the regular manner. In this scenario the public key is still received by the server, and given a sufficiently small key (default 8 bits) it will be able to derive the private key.
 
 ### Server
 
@@ -30,7 +44,7 @@ There is a key provided in the root of the repo called `hostkey`. This is useful
 
 If not provided with a private key it will generate its own from parameters documented in the file. This will be the same key every time, and the number to factor with Shor's is 35 in this case.
 
-**NOTE** Run `python client/patch.py` first! Also: when using the provided client in the patched environment, it will fail with a message "Authentication Failed". This is because it is unable to sign outgoing packets with OpenSSL due to the small key size - the patch simply avoids this step long enough to send the public key in the regular manner. In this scenario the public key is still received by the server, and given a sufficiently small key (default 8 bits) it will be able to derive the private key.
+**NOTE** Run `python client/patch.py` first! Also: 
 
 
 ## Architecture
@@ -48,7 +62,7 @@ All modern SSH keys use >2048 bit keys, so breaking these keys is not viable. Ho
 
 `client/client.py` loads an RSA key from a file if provided one, otherwise it generates one from parameters documented in the file. It then runs an SSH client that is willing to use very small RSA keys.
 
-`client/patch.py` is a script to patch the `cryptography` package depended on by paramiko. Unfortunately, keys of a sufficiently small size to be breakable are *too* small to use with OpenSSL. Because of this limitation (security feature...) we simply forgo using the private key to sign any data. We do this by patching the python bindings to OpenSSL using `client/patch.py`. You should run `client/patch.py` in the client Python environment before you attempt to connect using the client script.
+`client/patch.py` should be run before running the client. This is covered in the environment section above.
 
 ## Notes on this implementation
 
