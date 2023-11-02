@@ -1,5 +1,5 @@
 # Maldetete
-SSH server that stores incoming public keys and decrypts them on a simulated quantum Shor's algoritm, plus a client that can (mostly) use RSA keys small enough to break.
+SSH server that stores incoming public keys and decrypts them on a simulated quantum Shor's algoritm, plus a client that can send RSA public keys small enough to break.
 
 ## Things that don't work
 
