@@ -44,7 +44,7 @@ When in doubt, try `python <server/server.py or client/client.py> -h` for a help
 
 `python server/server.py [-h, --help] [-p <port>] [-k <path to private key>]`
 
-By default it will serve on port 2222, 22 is usually a privileged port.
+By default it will use port 2222 because 22 is often a privileged port.
 If provided with a private key it will use this as an identity. Otherwise it will generate its own.
 There is a key provided in the root of the repo called `hostkey`. This is useful because by default OpenSSH aborts the connection if the host key of a server changes after you have connected to it once.
 
